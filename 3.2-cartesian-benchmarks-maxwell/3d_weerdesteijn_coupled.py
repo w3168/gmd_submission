@@ -151,9 +151,13 @@ DG0 = FunctionSpace(mesh, "DG", 0)  # DG0 for 1d radial profiles
 DG1 = FunctionSpace(mesh, "DG", 1)  # DG0 for 1d radial profiles
 R = FunctionSpace(mesh, "R", 0)  # Real function space (for constants)
 
-
 Z = MixedFunctionSpace([V, S])  # Mixed function space.
 
+Xsurf = SpatialCoordinate(surface_mesh)
+coord_fs = VectorFunctionSpace(surface_mesh, "CG", 1, dim=3)
+new_coord = assemble(interpolate(as_vector([Xsurf[0], Xsurf[1], radius_values_tilde[0]]), coord_fs))
+surface_mesh_output = Mesh(new_coord)
+Vsurf = VectorFunctionSpace(surface_mesh_output, "CG", 2)
 
 if args.load_checkpoint:
     with CheckpointFile(args.checkpoint_file, "r") as checkpoint:
@@ -165,6 +169,8 @@ u, m = split(z)  # returns symbolic ufl expression for u and m
 # next rename for output:
 z.subfunctions[0].rename("displacement")
 z.subfunctions[1].rename("internal variable")
+
+surface_displacement = Function(Vsurf, name='displacement')
 
 stress = Function(S, name='deviatoric stress')  # A field over the mixed function space Z.
 power_factor = Function(DG1, name='viscosity factor')  # A field over the mixed function space Z.
@@ -178,10 +184,16 @@ log("Number of Velocity and internal variable DOF:", V.dim()+S.dim())
 
 X = SpatialCoordinate(mesh)
 
+
+
 density_values = [3037, 3438, 3871, 4978]
 shear_modulus_values = [0.50605e11, 0.70363e11, 1.05490e11, 2.28340e11]
 viscosity_values = [1e40, 1e21, 1e21, 2e21]
-exponent_values = [1, 3, 3, 1]
+
+if args.power_law:
+    exponent_values = [1, 3, 3, 1]
+else:
+    exponent_values = [1, 1, 1, 1]
 
 density_scale = 4500
 shear_modulus_scale = 1e11
@@ -373,6 +385,50 @@ Z_nullspace = None  # Default: don't add nullspace for now
 Z_near_nullspace = rigid_body_modes(V, rotational=args.gamg_near_null_rot,
                                     translations=[0, 1, 2])
 
+iterative_parameters = {"mat_type": "matfree",
+                        "snes_type": "ksponly",
+                        "ksp_type": "gmres",
+                        "ksp_rtol": 1e-3,
+                        "ksp_converged_reason": None,
+                        "ksp_monitor": None,
+                        "pc_type": "fieldsplit",
+                        "pc_fieldsplit_type": "symmetric_multiplicative",
+
+                        "fieldsplit_0_ksp_converged_reason": None,
+                        "fieldsplit_0_ksp_monitor": None,
+                        "fieldsplit_0_ksp_type": "cg",
+                        "fieldsplit_0_pc_type": "python",
+                        "fieldsplit_0_pc_python_type": "gadopt.SPDAssembledPC",
+                        "fieldsplit_0_assembled_pc_type": "gamg",
+                        "fieldsplit_0_assembled_mg_levels_pc_type": "sor",
+                        "fieldsplit_0_ksp_rtol": 1e-5,
+                        "fieldsplit_0_assembled_pc_gamg_threshold": 0.01,
+                        "fieldsplit_0_assembled_pc_gamg_square_graph": 100,
+                        "fieldsplit_0_assembled_pc_gamg_coarse_eq_limit": 1000,
+                        "fieldsplit_0_assembled_pc_gamg_mis_k_minimum_degree_ordering": True,
+
+                        "fieldsplit_1_ksp_converged_reason": None,
+                        "fieldsplit_1_ksp_monitor": None,
+                        "fieldsplit_1_ksp_type": "cg",
+                        "fieldsplit_1_pc_type": "python",
+                        "fieldsplit_1_pc_python_type": "firedrake.AssembledPC",
+                        "fieldsplit_1_assembled_pc_type": "sor",
+                        "fieldsplit_1_ksp_rtol": 1e-5,
+                        }
+
+if args.power_law:
+    nonlinear_parameters = {
+        "snes_monitor": None,
+        "snes_converged_reason": None,
+        "snes_type": "newtonls",
+        "snes_linesearch_type": "l2",
+        "snes_max_it": 100,
+        "snes_atol": 1e-15,
+        "snes_rtol": 1e-4,
+    }
+    iterative_parameters = iterative_parameters | nonlinear_parameters
+
+
 coupled_solver = CoupledInternalVariableSolver(
     z,
     approximation,
@@ -381,7 +437,8 @@ coupled_solver = CoupledInternalVariableSolver(
     nullspace=Z_nullspace,
     transpose_nullspace=Z_nullspace,
     near_nullspace=Z_near_nullspace,
-    scaling_factor=1e6
+    scaling_factor=1e6,
+    solver_parameters=iterative_parameters,
 )
 
 
@@ -391,6 +448,13 @@ coupled_stage = PETSc.Log.Stage("coupled_solve")
 
 # +
 # Create output file
+SURFACE_OUTPUT=True
+if SURFACE_OUTPUT:
+    surface_output_file = VTKFile(args.output_path+f"surface_output_{name}.pvd")
+    surface_displacement.interpolate(u, allow_missing_dofs=True)
+    surface_output_file.write(surface_displacement)
+
+
 OUTPUT = args.write_output
 if OUTPUT:
     stress.interpolate(approximation.deviatoric_stress(z.subfunctions[0], [z.subfunctions[1]]))
@@ -399,7 +463,7 @@ if OUTPUT:
     output_file = VTKFile(args.output_path+f"output_{name}.pvd")
     output_file.write(*z.subfunctions, stress, dev_stress_2, power_factor)
 
-plog = ParameterLog("params.log", mesh)
+plog = ParameterLog(f"{args.output_path}{name}-params.log", mesh)
 plog.log_str(
     "timestep time dt u_rms u_rms_surf ux_max uv_min"
 )
@@ -449,13 +513,16 @@ for timestep in range(1, max_timesteps+1):
 
     if timestep % output_frequency == 0:
         log("timestep", timestep)
+        
+        if SURFACE_OUTPUT:
+            surface_displacement.interpolate(u, allow_missing_dofs=True)
+            surface_output_file.write(surface_displacement)
 
         if OUTPUT:
             stress.interpolate(approximation.deviatoric_stress(z.subfunctions[0], [z.subfunctions[1]]))
             dev_stress_2.interpolate(approximation.second_stress_invariant(stress))
             power_factor.interpolate(approximation.power_law_factor(stress))
             output_file.write(*z.subfunctions, stress, dev_stress_2, power_factor)
-            surface_output_file.write(z.subfunctions[0], stress, dev_stress_2, power_factor)
 
         with CheckpointFile(checkpoint_filename, "w") as checkpoint:
             checkpoint.save_function(z, name="Stokes")
