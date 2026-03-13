@@ -1,5 +1,7 @@
-Non-dimensional displacement fields at the surface are are stored in paraview output format in
-`surface_outputs.tar.gz` at 1 kyr intervals (0-10 kyr).
+Non-dimensional displacement fields at the surface are stored in paraview output format in
+`surface_outputs.tar.gz` 
+and csv format in `outputs_csv.tar.gz`
+at 1 kyr intervals (0-10 kyr)
 
 The peak negative radial (inward) displacement at each timestep can be found in
 `displacement-sphere-burgers-3d-internalvariable-gmd-reflevel6.0-nz10perlayer-dt50.0years-bulk1.94-nondim.dat`
