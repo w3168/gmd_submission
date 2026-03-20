@@ -22,7 +22,6 @@ cd /g/data/xd2/ws9229/gmd_submission/3.2-3.3-cartesian-benchmarks/
 dglayers=10
 dx=5
 bulk_shear_ratio=1.94
-#visc_ratio=0.1
 visc_ratio=0.5
 dt=1000
 Tend=110e3
