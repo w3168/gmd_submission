@@ -23,7 +23,6 @@ dglayers=10
 dx=5
 bulk_shear_ratio=1.94
 visc_ratio=0.1
-#visc_ratio=0.5
 dt=10
 Tend=200
 dt_out=50
