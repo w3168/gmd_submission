@@ -6,7 +6,7 @@ at 10 kyr intervals (0-110 kyr). To redimensionalise the displacement fields mul
 the depth of the domain, 2891 km.
 
 The peak negative radial (inward) displacement in metres at each timestep can be found in
-`displacement-weerdesteijn-3d-iv-burgersFalse-gmd-refinedsurfaceTrue-dx5.0km-nz10perlayer-dt1000.0years-bulk1.94-powerFalse-nondim.dat`
+`displacement-weerdesteijn-3d-iv-burgersFalse-gmd-refinedsurfaceTrue-dx5.0km-nz10perlayer-dt1000.0years-bulk1000-powerFalse-nondim.dat`
 
 To run the case use the `3d_weerdesteijn_coupled.py` script from the parent directory
 `gmd_submission/3.2-3.3-cartesian-benchmarks`
