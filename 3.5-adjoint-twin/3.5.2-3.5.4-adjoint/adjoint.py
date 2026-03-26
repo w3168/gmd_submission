@@ -737,16 +737,16 @@ def generate_inverse_problem(): # alpha_T=1.0, alpha_u=-1, alpha_d=-1, alpha_s=-
     pause_annotation()
     
     # storing adjoint results
+    updated_ice_thickness_surf = Function(control_ice_thickness_surf, name="updated ice thickness")
     updated_ice_thickness = Function(control_ice_thickness, name="updated ice thickness")
     updated_viscosity = Function(target_viscosity, name="updated viscosity")
     updated_log_viscosity = Function(control_viscosity, name="updated control viscosity")
-    updated_solution_file = VTKFile(f"{args.output_path}{name}_sol.pvd")
     updated_displacement = Function(u, name="updated displacement")
     updated_velocity = Function(u, name="updated velocity")
-    updated_out_file = VTKFile(f"{args.output_path}{name}_updated_out.pvd")
     
     updated_solution_file = VTKFile(f"{args.output_path}{name}_sol.pvd")
     updated_out_file = VTKFile(f"{args.output_path}{name}_updated_out.pvd")
+    updated_surface_ice_file = VTKFile(f"{args.output_path}{name}_surface_ice.pvd")
 
     controls_checkpoint_filename = f"{args.output_path}{name}_controls.h5"
 
@@ -823,6 +823,7 @@ def generate_inverse_problem(): # alpha_T=1.0, alpha_u=-1, alpha_d=-1, alpha_s=-
             # Write out values of control and final forward model results
             if args.controls == "ice" or args.controls =="both":
                 updated_ice_thickness.assign(control_ice_thickness.block_variable.checkpoint)
+                updated_ice_thickness_surf.assign(control_ice_thickness_surf.block_variable.checkpoint)
 
             
             # Write out values of control and final forward model results
@@ -832,6 +833,7 @@ def generate_inverse_problem(): # alpha_T=1.0, alpha_u=-1, alpha_d=-1, alpha_s=-
             updated_velocity.interpolate(velocity.block_variable.checkpoint)
             updated_solution_file.write(updated_ice_thickness, target_normalised_ice_thickness, updated_viscosity, 
                     target_viscosity, updated_displacement, final_target_displacement, updated_velocity, final_target_velocity)
+            updated_surface_ice_file.write(updated_ice_thickness_surf)
             updated_out_file.write(updated_displacement, final_target_displacement)
 
             with CheckpointFile(controls_checkpoint_filename, "w") as checkpoint:
