@@ -1,4 +1,5 @@
-# Idealised 2-D viscoelastic loading problem in a square box
+# Forward simulation of instantaneous ice loading in a
+# 2d cylinder with 1d and laterally varying viscosity fields
 # =======================================================
 #
 
@@ -442,14 +443,6 @@ for timestep in range(1, max_timesteps+1):
         surface_disp_y_concat = np.concatenate(surface_disp_y_all)
         displacement_df[f'surface_disp_y_step{timestep}'] = surface_disp_y_concat
 
-#    disp_norm_L2surf = assemble((z.subfunctions[0][vertical_component])**2 * ds(boundary.top))
- #   log("L2 surface norm displacement", disp_norm_L2surf)
-
-  #  disp_norm_L1surf = assemble(abs(z.subfunctions[0][vertical_component]) * ds(boundary.top))
-   # log("L1 surface norm displacement", disp_norm_L1surf)
-
-    #integrated_disp = assemble(z.subfunctions[0][vertical_component] * ds(boundary.top))
-    #log("Integrated displacement", integrated_disp)
 
     if timestep % output_frequency == 0:
         log("timestep", timestep)
@@ -469,99 +462,3 @@ for timestep in range(1, max_timesteps+1):
                      )
 
 objective_checkpoint_file.close()
-# Let's use the python package *PyVista* to plot the magnitude of the displacement field through time.
-# We will use the calculated displacement to artifically scale the mesh. We have exaggerated the stretching
-# by a factor of 1500, **BUT...** it is important to remember this is just for ease of visualisation -
-# the mesh is not moving in reality!
-
-# + tags=["active-ipynb"]
-# import matplotlib.pyplot as plt
-# import pyvista as pv
-#
-# # Read the PVD file
-# reader = pv.get_reader("output.pvd")
-# data = reader.read()[0]  # MultiBlock mesh with only 1 block
-#
-# # Create a plotter object
-# plotter = pv.Plotter(shape=(1, 1), border=False, notebook=True, off_screen=False)
-#
-# # Open a gif
-# plotter.open_gif("displacement_warp.gif")
-#
-# # Make a colour map
-# boring_cmap = plt.get_cmap("viridis", 25)
-#
-# for i in range(len(reader.time_values)):
-#     reader.set_active_time_point(i)
-#     data = reader.read()[0]
-#
-#     # Artificially warp the output data in the vertical direction by the free surface height
-#     # Note the mesh is not really moving!
-#     warped = data.warp_by_vector(vectors="displacement", factor=1500)
-#     arrows = data.glyph(orient="Incremental Displacement", scale="Incremental Displacement", factor=400000, tolerance=0.05)
-#     plotter.add_mesh(arrows, color="white", lighting=False)
-#
-#     # Add the warped displacement field to the frame
-#     plotter.add_mesh(
-#         warped,
-#         scalars="displacement",
-#         component=None,
-#         lighting=False,
-#         show_edges=False,
-#         clim=[0, 70],
-#         cmap=boring_cmap,
-#         scalar_bar_args={
-#             "title": 'Displacement (m)',
-#             "position_x": 0.8,
-#             "position_y": 0.2,
-#             "vertical": True,
-#             "title_font_size": 20,
-#             "label_font_size": 16,
-#             "fmt": "%.0f",
-#             "font_family": "arial",
-#         }
-#     )
-#
-#     # Fix camera in default position otherwise mesh appears to jump around!
-#     plotter.camera_position = [(750000.0, 1445500.0, 6291991.008627122),
-#                         (750000.0, 1445500.0, 0.0),
-#                         (0.0, 1.0, 0.0)]
-#     plotter.add_text(f"Time: {i*2000:6} years", name='time-label')
-#     plotter.write_frame()
-#
-#     if i == len(reader.time_values)-1:
-#         # Write end frame multiple times to give a pause before gif starts again!
-#         for j in range(20):
-#             plotter.write_frame()
-#
-#     plotter.clear()
-#
-# # Closes and finalizes movie
-# plotter.close()
-# -
-# Looking at the animation, we can see that as the weight of the ice load builds up the mantle deforms,
-# pushing up material away from the ice load. If we kept the ice load fixed this forebulge will
-# eventually grow enough that it balances the weight of the ice, i.e the mantle is in isostatic
-# equilbrium and the deformation due to the ice load stops. At 100 thousand years when the ice is removed
-# the topographic highs associated with forebulges are now out of equilibrium so the flow of material
-# in the mantle reverses back towards the previously glaciated region.
-
-# ![SegmentLocal](displacement_warp.gif "segment")
-
-# References
-# ----------
-# Cathles L.M. (1975). *Viscosity of the Earth's Mantle*, Princeton University Press.
-#
-# Dahlen F. A. and Tromp J. (1998). *Theoretical Global Seismology*, Princeton University Press.
-#
-# Ranalli, G. (1995). Rheology of the Earth. Springer Science & Business Media.
-#
-# Weerdesteijn, M. F., Naliboff, J. B., Conrad, C. P., Reusen, J. M., Steffen, R., Heister, T., &
-# Zhang, J. (2023). *Modeling viscoelastic solid earth deformation due to ice age and contemporary
-# glacial mass changes in ASPECT*. Geochemistry, Geophysics, Geosystems.
-#
-# Wu P., Peltier W. R. (1982). *Viscous gravitational relaxation*, Geophysical Journal International.
-#
-# Zhong, S., Paulson, A., & Wahr, J. (2003). Three-dimensional finite-element modelling of Earth’s
-# viscoelastic deformation: effects of lateral variations in lithospheric thickness. Geophysical
-# Journal International.
